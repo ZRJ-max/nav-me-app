@@ -173,15 +173,21 @@
                 body: JSON.stringify({ answers: answersData })
             });
             const data = await response.json();
+            
             document.getElementById('loading').style.display = 'none';
             document.getElementById('results').style.display = 'block';
-            document.getElementById('reportContainer').innerHTML = data.result;
+            
+            // إضافة نظام عرض الأخطاء المباشر
+            if (data.error) {
+                document.getElementById('reportContainer').innerHTML = `<div style="padding: 20px; background: #fef2f2; border: 1.5px solid #fca5a5; color: #991b1b; border-radius: 10px; font-weight: bold; line-height: 1.8;">⚠️ حدث خطأ في الاتصال بالذكاء الاصطناعي:<br> ${data.error} <br><br> (تأكد من صحة مفتاح API في إعدادات Vercel)</div>`;
+            } else {
+                document.getElementById('reportContainer').innerHTML = data.result;
+            }
+            
         } catch (err) {
-            alert('حدث خطأ. يرجى المحاولة لاحقاً.');
+            alert('حدث خطأ في النظام. يرجى المحاولة لاحقاً.');
             document.getElementById('loading').style.display = 'none';
             document.getElementById('quizForm').style.display = 'block';
         }
     });
 </script>
-</body>
-</html>
