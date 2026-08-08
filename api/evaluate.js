@@ -1,17 +1,17 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
     const { answers } = req.body;
-    
-    try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const apiKey = process.env.GEMINI_API_KEY;
 
-        const systemPrompt = `أنت الخبير الاستشاري الذكي لمنصة NAV Me لتوجيه الشباب الذين لا يملكون أي فكرة عن شغفهم أو مسارهم المستقبلي من الصفر. 
+    // التأكد من وجود المفتاح قبل الاتصال
+    if (!apiKey) {
+        return res.status(400).json({ error: 'مفتاح API غير موجود في إعدادات Vercel.' });
+    }
+
+    const systemPrompt = `أنت الخبير الاستشاري الذكي لمنصة NAV Me لتوجيه الشباب الذين لا يملكون أي فكرة عن شغفهم أو مسارهم المستقبلي من الصفر. 
 قم بتحليل إجابات المستفيد الـ 15 (التي تجمع بين خيارات نعم/لا والإجابات النصية) استناداً إلى المنظومة العلمية الثلاثية:
 1. البُعد الشرعي والفطري: التيسير والفطرة (Effort-to-Output)، ثغر الخدمة، والنفع المتعدي.
 2. البُعد النفسي والذاتي: الدافعية الداخلية، حالة الانغماس (Flow)، وطبيعة التفكير.
@@ -26,11 +26,26 @@ export default async function handler(req, res) {
 إجابات المستفيد:
 ${answers}`;
 
-        const result = await model.generateContent(systemPrompt);
-        const response = await result.response;
-        const text = response.text();
+    try {
+        // الاتصال المباشر بخوادم جوجل بدون مكتبة
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: systemPrompt }] }]
+            })
+        });
 
-        return res.status(200).json({ result: text });
+        const data = await response.json();
+
+        // إذا رفضت جوجل الاتصال، سنرسل رسالة الرفض مباشرة للشاشة
+        if (!response.ok) {
+            return res.status(400).json({ error: data.error?.message || 'مفتاح غير صالح أو خطأ في الاتصال' });
+        }
+
+        const textResult = data.candidates[0].content.parts[0].text;
+        return res.status(200).json({ result: textResult });
+        
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
