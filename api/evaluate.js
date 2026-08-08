@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -6,15 +6,14 @@ export default async function handler(req, res) {
     }
 
     const { answers } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
         return res.status(400).json({ error: 'مفتاح API غير موجود في إعدادات Vercel.' });
     }
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const openai = new OpenAI({ apiKey: apiKey });
 
         const systemPrompt = `أنت الخبير الاستشاري الذكي لمنصة NAV Me لتوجيه الشباب الذين لا يملكون أي فكرة عن شغفهم أو مسارهم المستقبلي من الصفر. 
 قم بتحليل إجابات المستفيد الـ 15 (التي تجمع بين خيارات نعم/لا والإجابات النصية) استناداً إلى المنظومة العلمية الثلاثية:
@@ -31,10 +30,14 @@ export default async function handler(req, res) {
 إجابات المستفيد:
 ${answers}`;
 
-        const result = await model.generateContent(systemPrompt);
-        const textResult = result.response.text();
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: systemPrompt }],
+        });
 
+        const textResult = completion.choices[0].message.content;
         return res.status(200).json({ result: textResult });
+        
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
